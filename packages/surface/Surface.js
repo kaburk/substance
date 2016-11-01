@@ -17,10 +17,6 @@ import UnsupportedNode from '../../ui/UnsupportedNodeComponent'
 /**
    Abstract interface for editing components.
    Dances with contenteditable, so you don't have to.
-
-   @class
-   @component
-   @abstract
 */
 class Surface extends Component {
 
@@ -330,9 +326,6 @@ class Surface extends Component {
     })
   }
 
-  /**
-    Performs an {@link model/transform/insertText} transformation
-  */
   insertText(tx, args) {
     let sel = args.selection
     if (sel.isPropertySelection() || sel.isContainerSelection()) {
@@ -340,9 +333,6 @@ class Surface extends Component {
     }
   }
 
-  /**
-    Performs a {@link model/transform/deleteSelection} transformation
-  */
   delete(tx, args) {
     let sel = args.selection
     if (!sel.isCollapsed()) {
@@ -353,31 +343,20 @@ class Surface extends Component {
     }
   }
 
-  // No breaking in properties, insert softbreak instead
   break(tx, args) {
     return this.softBreak(tx, args)
   }
 
-  /**
-    Inserts a soft break
-  */
   softBreak(tx, args) {
     args.text = "\n"
     return this.insertText(tx, args)
   }
 
-  /**
-    Copy the current selection. Performs a {@link model/transform/copySelection}
-    transformation.
-  */
   copy(doc, selection) {
     let result = copySelection(doc, { selection: selection })
     return result.doc
   }
 
-  /**
-    Performs a {@link model/transform/paste} transformation
-  */
   paste(tx, args) {
     // TODO: for now only plain text is inserted
     // We could do some stitching however, preserving the annotations
@@ -400,12 +379,20 @@ class Surface extends Component {
 
     // core handlers for cursor movements and editor interactions
     switch ( event.keyCode ) {
+      // Cursor movements
       case keys.LEFT:
       case keys.RIGHT:
         return this._handleLeftOrRightArrowKey(event)
       case keys.UP:
       case keys.DOWN:
         return this._handleUpOrDownArrowKey(event)
+      case keys.HOME:
+      case keys.END:
+        return this._handleHomeOrEndKey(event)
+      case keys.PAGEUP:
+      case keys.PAGEDOWN:
+        return this._handlePageUpOrDownKey(event)
+      // Input (together with text-input)
       case keys.ENTER:
         return this._handleEnterKey(event)
       case keys.SPACE:
@@ -413,16 +400,11 @@ class Surface extends Component {
       case keys.BACKSPACE:
       case keys.DELETE:
         return this._handleDeleteKey(event)
-      case keys.HOME:
-      case keys.END:
-        return this._handleHomeOrEndKey(event)
-      case keys.PAGEUP:
-      case keys.PAGEDOWN:
-        return this._handlePageUpOrDownKey(event)
       default:
         break
     }
 
+    // keyboard shortcuts
     this.editorSession.keyboardManager.onKeydown(event)
   }
 
@@ -738,36 +720,20 @@ class Surface extends Component {
   _handleSpaceKey(event) {
     event.preventDefault()
     event.stopPropagation()
-    this.transaction(function(tx, args) {
-      // trying to remove the DOM selection to reduce flickering
-      this.domSelection.clear()
-      args.text = " "
-      return this.insertText(tx, args)
-    }.bind(this), { action: 'type' })
+    this.editorSession.editing.type(' ')
   }
 
   _handleEnterKey(event) {
     event.preventDefault()
     event.stopPropagation()
-    if (event.shiftKey) {
-      this.transaction(function(tx, args) {
-        return this.softBreak(tx, args)
-      }.bind(this), { action: 'break' })
-    } else {
-      this.transaction(function(tx, args) {
-        return this.break(tx, args)
-      }.bind(this), { action: 'break' })
-    }
+    this.editorSession.editing.break()
   }
 
   _handleDeleteKey(event) {
     event.preventDefault()
     event.stopPropagation()
     let direction = (event.keyCode === keys.BACKSPACE) ? 'left' : 'right'
-    this.transaction(function(tx, args) {
-      args.direction = direction
-      return this.delete(tx, args)
-    }.bind(this), { action: 'delete' })
+    this.editorSession.editing.delete(direction)
   }
 
   _hasNativeFocus() {
